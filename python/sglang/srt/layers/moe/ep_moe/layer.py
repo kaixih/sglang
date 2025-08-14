@@ -467,6 +467,11 @@ class DeepEPMoE(EPMoE):
             assert deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and self.use_fp8_w8a8
             return self.forward_deepgemm_contiguous(dispatch_output)
         elif DispatchOutputChecker.format_is_deepep_ll(dispatch_output):
+            enable_flashinfer_cutedsl_moe = (
+                get_moe_runner_backend().is_flashinfer_cutedsl()
+            )
+            if enable_flashinfer_cutedsl_moe:
+                return self.forward_flashinfer_dsl(dispatch_output)
             assert deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and self.use_fp8_w8a8
             return self.forward_deepgemm_masked(dispatch_output)
         else:
@@ -646,6 +651,22 @@ class DeepEPMoE(EPMoE):
 
         return gather_out
 
+    def forward_flashinfer_dsl(
+        self,
+        dispatch_output: DeepEPLLOutput,
+    ):
+        hidden_states, _, _, masked_m, expected_m = dispatch_output
+        assert self.quant_method is not None
+        assert self.moe_runner_config.activation == "silu"
+
+        output = self.quant_method.apply_without_routing_weights(
+            layer=self,
+            x=hidden_states,
+            masked_m=masked_m,
+            moe_runner_config=self.moe_runner_config,
+        )
+        return output
+
     def forward_deepgemm_masked(
         self,
         dispatch_output: DeepEPLLOutput,
@@ -661,6 +682,18 @@ class DeepEPMoE(EPMoE):
         gateup_output = torch.empty(
             (num_groups, m, n), device=hidden_states_fp8[0].device, dtype=torch.bfloat16
         )
+#        def print_tensor_info(name, t):
+#            if hasattr(t, "shape") and hasattr(t, "dtype"):
+#                print(f"{name}: shape={tuple(t.shape)}, dtype={t.dtype}, device={t.device}")
+#            elif hasattr(t, "shape"):
+#                print(f"{name}: shape={tuple(t.shape)}, type={type(t)}")
+#            else:
+#                print(f"{name}: {type(t)} -> {t}")        
+#
+#        print_tensor_info("hidden_states_fp8", hidden_states_fp8)
+#        print_tensor_info("self.w13_weight_fp8", self.w13_weight_fp8)
+#        print_tensor_info("gateup_output", gateup_output)
+#        print_tensor_info("masked_m", masked_m)
         deep_gemm_wrapper.grouped_gemm_nt_f8f8bf16_masked(
             hidden_states_fp8,
             self.w13_weight_fp8,
