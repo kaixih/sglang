@@ -16,16 +16,33 @@ logger = logging.getLogger(__name__)
 
 if ENABLE_JIT_DEEPGEMM:
     import deep_gemm
-    from deep_gemm.utils.layout import get_mn_major_tma_aligned_tensor
+
+    if DEEPGEMM_BLACKWELL:
+        from deep_gemm import fp8_gemm_nt as _gemm_nt_f8f8bf16_raw
+        from deep_gemm import (
+            fp8_m_grouped_gemm_nt_masked as _grouped_gemm_nt_f8f8bf16_masked_raw,
+        )
+        from deep_gemm import (
+            m_grouped_fp8_gemm_nt_contiguous as _grouped_gemm_nt_f8f8bf16_contig_raw,
+        )
+    else:
+        from deep_gemm import gemm_fp8_fp8_bf16_nt as _gemm_nt_f8f8bf16_raw
+        from deep_gemm import get_col_major_tma_aligned_tensor
+        from deep_gemm import (
+            m_grouped_gemm_fp8_fp8_bf16_nt_contiguous as _grouped_gemm_nt_f8f8bf16_contig_raw,
+        )
+        from deep_gemm import (
+            m_grouped_gemm_fp8_fp8_bf16_nt_masked as _grouped_gemm_nt_f8f8bf16_masked_raw,
+        )
 
 
-# TODO maybe rename these functions
 def grouped_gemm_nt_f8f8bf16_masked(
     lhs: Tuple[torch.Tensor, torch.Tensor],
     rhs: Tuple[torch.Tensor, torch.Tensor],
     out: torch.Tensor,
     masked_m: torch.Tensor,
     expected_m: int,
+    recipe=None,
 ):
     num_groups, _, k = lhs[0].shape
     _, n, _ = rhs[0].shape
@@ -34,12 +51,13 @@ def grouped_gemm_nt_f8f8bf16_masked(
     with compile_utils.deep_gemm_execution_hook(
         expected_m, n, k, num_groups, kernel_type
     ):
-        deep_gemm.fp8_m_grouped_gemm_nt_masked(
+        _grouped_gemm_nt_f8f8bf16_masked_raw(
             lhs,
             rhs,
             out,
             masked_m,
             expected_m,
+            **({"recipe": recipe} if DEEPGEMM_BLACKWELL else {})
         )
 
 
@@ -54,7 +72,7 @@ def grouped_gemm_nt_f8f8bf16_contig(
     kernel_type = compile_utils.DeepGemmKernelType.GROUPED_GEMM_NT_F8F8BF16_CONTIG
 
     with compile_utils.deep_gemm_execution_hook(m, n, k, num_groups, kernel_type):
-        deep_gemm.m_grouped_fp8_gemm_nt_contiguous(lhs, rhs, out, m_indices)
+        _grouped_gemm_nt_f8f8bf16_contig_raw(lhs, rhs, out, m_indices)
 
 
 def gemm_nt_f8f8bf16(
@@ -68,7 +86,7 @@ def gemm_nt_f8f8bf16(
     kernel_type = compile_utils.DeepGemmKernelType.GEMM_NT_F8F8BF16
 
     with compile_utils.deep_gemm_execution_hook(m, n, k, num_groups, kernel_type):
-        deep_gemm.fp8_gemm_nt(
+        _gemm_nt_f8f8bf16_raw(
             lhs,
             rhs,
             out,
