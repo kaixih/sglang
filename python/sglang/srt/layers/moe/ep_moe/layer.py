@@ -248,6 +248,7 @@ class EPMoE(FusedMoE):
             gateup_output,
             masked_m,
             expected_m,
+            recipe=(1, 128, 128) if deep_gemm_wrapper.DEEPGEMM_BLACKWELL else None,
         )
         del gateup_input
         del gateup_input_fp8
@@ -303,6 +304,7 @@ class EPMoE(FusedMoE):
             down_output,
             masked_m,
             expected_m,
+            recipe=(1, 128, 128) if deep_gemm_wrapper.DEEPGEMM_BLACKWELL else None,
         )
         del down_input
         del down_input_fp8
@@ -665,6 +667,7 @@ class DeepEPMoE(EPMoE):
             gateup_output,
             masked_m,
             expected_m,
+            recipe=(1, 128, 128) if deep_gemm_wrapper.DEEPGEMM_BLACKWELL else None,
         )
         dispose_tensor(hidden_states_fp8[0])
 
@@ -705,7 +708,9 @@ class DeepEPMoE(EPMoE):
             (
                 down_input_scale
                 if deep_gemm_wrapper.DEEPGEMM_SCALE_UE8M0
-                else deep_gemm_wrapper.get_mn_major_tma_aligned_tensor(down_input_scale)
+                else deep_gemm_wrapper.get_col_major_tma_aligned_tensor(
+                    down_input_scale
+                )
             ),
         )
         down_output = torch.empty(
@@ -717,6 +722,7 @@ class DeepEPMoE(EPMoE):
             down_output,
             masked_m,
             expected_m,
+            recipe=(1, 128, 128) if deep_gemm_wrapper.DEEPGEMM_BLACKWELL else None,
         )
 
         return down_output
