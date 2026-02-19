@@ -1,0 +1,46 @@
+================================================================================
+GDN Prefill Kernel Benchmark (T>1)
+  Kernel: Triton chunk_gated_delta_rule
+================================================================================
+Configuration:
+  QK Heads (H): 16
+  V Heads (HV): 64
+  Head Dim (K, V): 128
+  Batch Sizes (N): [1, 32, 64, 128, 256]
+  Seq Lengths (T): [128, 1024]
+  GPU: NVIDIA GB200
+  Correctness: atol=0.15, fail_rate_threshold=10.0%
+
+--------------------------------------------------------------------------------
+CORRECTNESS TESTING
+--------------------------------------------------------------------------------
+  ✓ PASS | B=   1, T= 128 (SmallBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B=  32, T= 128 (LargeBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B=  64, T= 128 (LargeBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B= 128, T= 128 (LargeBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B= 256, T= 128 (LargeBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B=   1, T=1024 (SmallBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B=  32, T=1024 (LargeBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B=  64, T=1024 (LargeBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B= 128, T=1024 (LargeBatch): Triton chunk_gated_delta_rule
+  ✓ PASS | B= 256, T=1024 (LargeBatch): Triton chunk_gated_delta_rule
+
+✓ All correctness tests PASSED
+
+--------------------------------------------------------------------------------
+PERFORMANCE BENCHMARKING
+--------------------------------------------------------------------------------
+  B=   1, T= 128 (SmallBatch): Triton=  444.48μs (  1.21TFLOPS)
+  B=  32, T= 128 (LargeBatch): Triton=  621.57μs ( 27.64TFLOPS)
+  B=  64, T= 128 (LargeBatch): Triton= 1179.65μs ( 29.13TFLOPS)
+  B= 128, T= 128 (LargeBatch): Triton= 2294.82μs ( 29.95TFLOPS)
+  B= 256, T= 128 (LargeBatch): Triton= 4542.53μs ( 30.26TFLOPS)
+  B=   1, T=1024 (SmallBatch): Triton=  424.83μs ( 10.11TFLOPS)
+  B=  32, T=1024 (LargeBatch): Triton= 3647.71μs ( 37.68TFLOPS)
+  B=  64, T=1024 (LargeBatch): Triton= 7464.96μs ( 36.82TFLOPS)
+  B= 128, T=1024 (LargeBatch): Triton=15102.48μs ( 36.40TFLOPS)
+  B= 256, T=1024 (LargeBatch): Triton=30416.90μs ( 36.15TFLOPS)
+
+================================================================================
+Benchmark complete!
+================================================================================

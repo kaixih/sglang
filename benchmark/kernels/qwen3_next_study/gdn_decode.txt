@@ -1,0 +1,46 @@
+/sgl-workspace/sglang/python/sglang/jit_kernel/cutedsl_gdn.py:220: DeprecationWarning: range_dynamic is deprecated and will be removed in the future, please remove it.
+  for k_iter in cutlass.range_dynamic(NUM_K_ITERS_SMALL, unroll=16):
+/sgl-workspace/sglang/python/sglang/jit_kernel/cutedsl_gdn.py:239: DeprecationWarning: range_dynamic is deprecated and will be removed in the future, please remove it.
+  for k_iter in cutlass.range_dynamic(NUM_K_ITERS_SMALL, unroll=16):
+/sgl-workspace/sglang/python/sglang/jit_kernel/cutedsl_gdn.py:677: DeprecationWarning: range_dynamic is deprecated and will be removed in the future, please remove it.
+  for k_iter in cutlass.range_dynamic(NUM_K_ITERS, unroll=8):
+/sgl-workspace/sglang/python/sglang/jit_kernel/cutedsl_gdn.py:693: DeprecationWarning: range_dynamic is deprecated and will be removed in the future, please remove it.
+  for k_iter in cutlass.range_dynamic(NUM_K_ITERS, unroll=8):
+================================================================================
+GDN Decode Kernel Benchmark (T=1)
+  Kernels: CuTe DSL (GB200) vs Triton (all GPUs)
+================================================================================
+Configuration:
+  QK Heads (H): 16
+  V Heads (HV): 64
+  Head Dim (K, V): 128
+  Batch Sizes (N): [1, 32, 64, 128, 256, 512]
+  Seq Length (T): 1 (decode)
+  GPU: NVIDIA GB200
+  Correctness: atol=0.15, fail_rate_threshold=10.0%
+
+--------------------------------------------------------------------------------
+CORRECTNESS TESTING
+--------------------------------------------------------------------------------
+  ✓ PASS | B=   1, T=   1 (SmallBatch): max=0.00e+00, mean=0.00e+00, fail_rate=0.00% (atol=0.15)
+  ✓ PASS | B=  32, T=   1 (LargeBatch): max=9.77e-04, mean=8.78e-09, fail_rate=0.00% (atol=0.15)
+  ✓ PASS | B=  64, T=   1 (LargeBatch): max=4.88e-04, mean=3.52e-09, fail_rate=0.00% (atol=0.15)
+  ✓ PASS | B= 128, T=   1 (LargeBatch): max=9.77e-04, mean=5.81e-09, fail_rate=0.00% (atol=0.15)
+  ✓ PASS | B= 256, T=   1 (LargeBatch): max=9.77e-04, mean=4.84e-09, fail_rate=0.00% (atol=0.15)
+  ✓ PASS | B= 512, T=   1 (LargeBatch): max=4.88e-04, mean=5.03e-09, fail_rate=0.00% (atol=0.15)
+
+✓ All correctness tests PASSED
+
+--------------------------------------------------------------------------------
+PERFORMANCE BENCHMARKING
+--------------------------------------------------------------------------------
+  B=   1, T=   1 (SmallBatch): Triton=   51.81μs (   0.2GB/s), CuTeDSL=  200.35μs (   0.0GB/s), speedup=0.26x
+  B=  32, T=   1 (LargeBatch): Triton=  109.73μs (   2.5GB/s), CuTeDSL=  206.88μs (   1.3GB/s), speedup=0.53x
+  B=  64, T=   1 (LargeBatch): Triton=  205.82μs (   2.6GB/s), CuTeDSL=  205.41μs (   2.6GB/s), speedup=1.00x
+  B= 128, T=   1 (LargeBatch): Triton=  401.18μs (   2.7GB/s), CuTeDSL=  357.44μs (   3.0GB/s), speedup=1.12x
+  B= 256, T=   1 (LargeBatch): Triton=  786.11μs (   2.7GB/s), CuTeDSL=  694.69μs (   3.1GB/s), speedup=1.13x
+  B= 512, T=   1 (LargeBatch): Triton= 1548.13μs (   2.8GB/s), CuTeDSL= 1366.05μs (   3.2GB/s), speedup=1.13x
+
+================================================================================
+Benchmark complete!
+================================================================================

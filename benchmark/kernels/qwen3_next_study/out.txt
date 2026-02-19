@@ -1,0 +1,295 @@
+EP=1: Total experts=512, Local experts=512
+
+================================================================================
+Smoke Tests: Verify kernels run without errors
+================================================================================
+
+[Test] BF16 MoE (batch=16):
+
+  Token Distribution Analysis:
+    Batch size: 16, TopK: 10
+    Total assignments: 160
+    Ideal per expert: 0.31
+    Actual: min=0, max=3, avg=0.31, std=0.56
+    Experts used: 139/512 (27.1%)
+    Balance ratio: 9.600 (1.0 = perfect)
+  Output shape: torch.Size([16, 4096])
+  Output dtype: torch.bfloat16
+  Output range: [-128000.0000, 136192.0000]
+  Has NaN: False, Has Inf: False
+  [PASS] BF16 MoE kernel runs correctly
+
+[Test] FP8 MoE (batch=16):
+
+  Token Distribution Analysis:
+    Batch size: 16, TopK: 10
+    Total assignments: 160
+    Ideal per expert: 0.31
+    Actual: min=0, max=2, avg=0.31, std=0.55
+    Experts used: 137/512 (26.8%)
+    Balance ratio: 6.400 (1.0 = perfect)
+  Output shape: torch.Size([16, 4096])
+  Output dtype: torch.bfloat16
+  Output range: [-42.0000, 41.7500]
+  Has NaN: False, Has Inf: False
+  [PASS] FP8 MoE kernel runs correctly
+
+[Test] NVFP4 MoE (batch=16):
+  Output shape: torch.Size([16, 4096])
+  Output dtype: torch.bfloat16
+  Output range: [-0.0008, 0.0007]
+  Has NaN: False, Has Inf: False
+  [PASS] NVFP4 MoE kernel runs correctly
+
+================================================================================
+
+====================================================================================================
+FlashInfer TRTLLM MoE Benchmark: BF16 vs FP8 vs NVFP4 for Qwen3-Next
+====================================================================================================
+Config: num_experts=512, topk=10, intermediate=1024, hidden=4096
+====================================================================================================
+EP=1: Total experts=512, Local experts=512
+
+[EP=1, Tokens=1024]
+
+  Token Distribution Analysis:
+    Batch size: 1024, TopK: 10
+    Total assignments: 10240
+    Ideal per expert: 20.00
+    Actual: min=5, max=33, avg=20.00, std=4.63
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.650 (1.0 = perfect)
+
+[EP=1, Tokens=2048]
+
+  Token Distribution Analysis:
+    Batch size: 2048, TopK: 10
+    Total assignments: 20480
+    Ideal per expert: 40.00
+    Actual: min=21, max=60, avg=40.00, std=6.33
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.500 (1.0 = perfect)
+
+[EP=1, Tokens=4096]
+
+  Token Distribution Analysis:
+    Batch size: 4096, TopK: 10
+    Total assignments: 40960
+    Ideal per expert: 80.00
+    Actual: min=56, max=106, avg=80.00, std=8.62
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.325 (1.0 = perfect)
+
+[EP=1, Tokens=8192]
+
+  Token Distribution Analysis:
+    Batch size: 8192, TopK: 10
+    Total assignments: 81920
+    Ideal per expert: 160.00
+    Actual: min=126, max=202, avg=160.00, std=12.68
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.262 (1.0 = perfect)
+
+[EP=1, Tokens=16384]
+
+  Token Distribution Analysis:
+    Batch size: 16384, TopK: 10
+    Total assignments: 163840
+    Ideal per expert: 320.00
+    Actual: min=271, max=366, avg=320.00, std=17.32
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.144 (1.0 = perfect)
+EP=2: Total experts=512, Local experts=256
+
+[EP=2, Tokens=1024]
+
+  Token Distribution Analysis:
+    Batch size: 1024, TopK: 10
+    Total assignments: 10240
+    Ideal per expert: 20.00
+    Actual: min=9, max=34, avg=20.00, std=4.26
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.700 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=2):
+    Experts per GPU: 256
+    Ideal tokens per GPU: 5120.00
+    Actual: min=5040, max=5200, avg=5120.00, std=80.00
+    GPU balance ratio: 1.016 (1.0 = perfect)
+    Per-GPU breakdown: [5200, 5040]
+
+[EP=2, Tokens=2048]
+
+  Token Distribution Analysis:
+    Batch size: 2048, TopK: 10
+    Total assignments: 20480
+    Ideal per expert: 40.00
+    Actual: min=19, max=58, avg=40.00, std=5.99
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.450 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=2):
+    Experts per GPU: 256
+    Ideal tokens per GPU: 10240.00
+    Actual: min=10193, max=10287, avg=10240.00, std=47.00
+    GPU balance ratio: 1.005 (1.0 = perfect)
+    Per-GPU breakdown: [10287, 10193]
+
+[EP=2, Tokens=4096]
+
+  Token Distribution Analysis:
+    Batch size: 4096, TopK: 10
+    Total assignments: 40960
+    Ideal per expert: 80.00
+    Actual: min=45, max=108, avg=80.00, std=8.94
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.350 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=2):
+    Experts per GPU: 256
+    Ideal tokens per GPU: 20480.00
+    Actual: min=20348, max=20612, avg=20480.00, std=132.00
+    GPU balance ratio: 1.006 (1.0 = perfect)
+    Per-GPU breakdown: [20612, 20348]
+
+[EP=2, Tokens=8192]
+
+  Token Distribution Analysis:
+    Batch size: 8192, TopK: 10
+    Total assignments: 81920
+    Ideal per expert: 160.00
+    Actual: min=125, max=193, avg=160.00, std=12.28
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.206 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=2):
+    Experts per GPU: 256
+    Ideal tokens per GPU: 40960.00
+    Actual: min=40738, max=41182, avg=40960.00, std=222.00
+    GPU balance ratio: 1.005 (1.0 = perfect)
+    Per-GPU breakdown: [41182, 40738]
+
+[EP=2, Tokens=16384]
+
+  Token Distribution Analysis:
+    Batch size: 16384, TopK: 10
+    Total assignments: 163840
+    Ideal per expert: 320.00
+    Actual: min=259, max=367, avg=320.00, std=18.23
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.147 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=2):
+    Experts per GPU: 256
+    Ideal tokens per GPU: 81920.00
+    Actual: min=81125, max=82715, avg=81920.00, std=795.00
+    GPU balance ratio: 1.010 (1.0 = perfect)
+    Per-GPU breakdown: [82715, 81125]
+EP=4: Total experts=512, Local experts=128
+
+[EP=4, Tokens=1024]
+
+  Token Distribution Analysis:
+    Batch size: 1024, TopK: 10
+    Total assignments: 10240
+    Ideal per expert: 20.00
+    Actual: min=8, max=36, avg=20.00, std=4.39
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.800 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=4):
+    Experts per GPU: 128
+    Ideal tokens per GPU: 2560.00
+    Actual: min=2489, max=2607, avg=2560.00, std=44.86
+    GPU balance ratio: 1.018 (1.0 = perfect)
+    Per-GPU breakdown: [2556, 2607, 2588, 2489]
+
+[EP=4, Tokens=2048]
+
+  Token Distribution Analysis:
+    Batch size: 2048, TopK: 10
+    Total assignments: 20480
+    Ideal per expert: 40.00
+    Actual: min=21, max=57, avg=40.00, std=6.24
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.425 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=4):
+    Experts per GPU: 128
+    Ideal tokens per GPU: 5120.00
+    Actual: min=5020, max=5251, avg=5120.00, std=85.21
+    GPU balance ratio: 1.026 (1.0 = perfect)
+    Per-GPU breakdown: [5078, 5020, 5251, 5131]
+
+[EP=4, Tokens=4096]
+
+  Token Distribution Analysis:
+    Batch size: 4096, TopK: 10
+    Total assignments: 40960
+    Ideal per expert: 80.00
+    Actual: min=55, max=111, avg=80.00, std=8.80
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.387 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=4):
+    Experts per GPU: 128
+    Ideal tokens per GPU: 10240.00
+    Actual: min=10113, max=10379, avg=10240.00, std=111.77
+    GPU balance ratio: 1.014 (1.0 = perfect)
+    Per-GPU breakdown: [10319, 10379, 10149, 10113]
+
+[EP=4, Tokens=8192]
+
+  Token Distribution Analysis:
+    Batch size: 8192, TopK: 10
+    Total assignments: 81920
+    Ideal per expert: 160.00
+    Actual: min=124, max=200, avg=160.00, std=13.12
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.250 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=4):
+    Experts per GPU: 128
+    Ideal tokens per GPU: 20480.00
+    Actual: min=20119, max=20926, avg=20480.00, std=313.19
+    GPU balance ratio: 1.022 (1.0 = perfect)
+    Per-GPU breakdown: [20926, 20610, 20265, 20119]
+
+[EP=4, Tokens=16384]
+
+  Token Distribution Analysis:
+    Batch size: 16384, TopK: 10
+    Total assignments: 163840
+    Ideal per expert: 320.00
+    Actual: min=262, max=375, avg=320.00, std=18.14
+    Experts used: 512/512 (100.0%)
+    Balance ratio: 1.172 (1.0 = perfect)
+
+  GPU Balance Analysis (EP=4):
+    Experts per GPU: 128
+    Ideal tokens per GPU: 40960.00
+    Actual: min=40715, max=41178, avg=40960.00, std=187.37
+    GPU balance ratio: 1.005 (1.0 = perfect)
+    Per-GPU breakdown: [41101, 41178, 40715, 40846]
+
+================================================================================================================================================================
+BF16 vs FP8 vs NVFP4 Comparison
+================================================================================================================================================================
+  EP |     Tokens |  BF16 (ms) |  BF16 TFLOPS |   FP8 (ms) |   FP8 TFLOPS |   NVFP4 (ms) |   NVFP4 TFLOPS |       Best
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+   1 |       1024 |      1.905 |       135.28 |      1.295 |       199.01 |        0.608 |         424.02 | NVFP4 3.13x
+   1 |       2048 |      2.057 |       250.58 |      1.472 |       350.04 |        0.695 |         741.34 | NVFP4 2.96x
+   1 |       4096 |      2.270 |       454.12 |      1.937 |       532.11 |        0.878 |        1173.71 | NVFP4 2.58x
+   1 |       8192 |      3.170 |       650.34 |      3.007 |       685.55 |        1.163 |        1772.60 | NVFP4 2.73x
+   1 |      16384 |      5.295 |       778.69 |      5.550 |       742.88 |        1.748 |        2358.25 | NVFP4 3.03x
+   2 |       1024 |      0.950 |       135.67 |      0.605 |       212.86 |        0.346 |         372.45 | NVFP4 2.75x
+   2 |       2048 |      0.984 |       261.95 |      0.688 |       374.58 |        0.378 |         681.58 | NVFP4 2.60x
+   2 |       4096 |      1.183 |       435.50 |      1.077 |       478.65 |        0.419 |        1229.24 | NVFP4 2.82x
+   2 |       8192 |      1.662 |       620.36 |      1.712 |       601.93 |        0.655 |        1573.49 | NVFP4 2.54x
+   2 |      16384 |      2.785 |       740.28 |      3.171 |       650.16 |        0.994 |        2073.88 | NVFP4 2.80x
+   4 |       1024 |      0.504 |       127.90 |      0.354 |       182.18 |        0.208 |         310.34 | NVFP4 2.43x
+   4 |       2048 |      0.537 |       240.12 |      0.426 |       302.67 |        0.234 |         550.39 | NVFP4 2.29x
+   4 |       4096 |      0.645 |       399.50 |      0.682 |       377.96 |        0.264 |         977.62 | NVFP4 2.45x
+   4 |       8192 |      0.923 |       558.54 |      1.111 |       464.02 |        0.407 |        1267.48 | NVFP4 2.27x
+   4 |      16384 |      1.522 |       677.41 |      2.064 |       499.48 |        0.630 |        1636.30 | NVFP4 2.42x
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
