@@ -11,8 +11,10 @@ Kernel selection:
                  FlashInfer: gated_delta_rule_mtp
 Both MTP kernels support intermediate state caching for speculative decoding retraction.
 
-Note: T>1 correctness is not checked - SGLang MTP takes pre-computed g while
-FlashInfer MTP takes A_log/a/dt_bias, so their outputs are not directly comparable.
+State dtypes:
+- T=1  decode:  both use bfloat16 state
+- T>1  MTP:     both use float32 state (FlashInfer has no native bf16 MTP path;
+                 SGLang can store bf16 and converts on-the-fly in-kernel to fp32)
 
 Target shapes (Qwen3-Next):
 - QK num_heads (H): 16
@@ -72,8 +74,13 @@ def _make_decode_states(N, HV, K, V):
 def _make_mtp_states(N, T, HV, K, V):
     """States and intermediate buffers for T>1 MTP.
 
+    Both use float32 states. FlashInfer MTP has no native bfloat16 path:
+    it does a Python-level .to(float32) copy when given bfloat16 input.
+    SGLang MTP CAN store state in bfloat16 (kernel converts on-the-fly to
+    float32 for compute), but we use float32 here for a fair comparison.
+
     SGLang:
-      state: [N, HV, K, V] stride[-2]=1, float32 (FlashInfer MTP requires float32, so both use float32)
+      state: [N, HV, K, V] stride[-2]=1, float32
       intermediate: [N+1, T, HV, K, V] stride[-2]=1, float32
       indices: [N], cu_seqlens: [N+1]
 
