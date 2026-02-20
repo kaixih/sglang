@@ -18,6 +18,17 @@ Both MTP kernels support intermediate state caching for speculative decoding ret
 - SGLang MTP expects flat `[1, N×T, ...]` inputs + `cu_seqlens`, gate `g = -exp(A_log)·softplus(a + dt_bias)` pre-computed.
 - FlashInfer MTP expects batched `[N, T, ...]` inputs, computes gate internally from `A_log/a/dt_bias`.
 
+**Note on MTP bfloat16 state:**
+FlashInfer MTP has no native bfloat16 kernel path. Even if the dtype assert is
+removed, passing a bfloat16 state triggers a Python-level
+`initial_state.to(torch.float32)` copy before the kernel call — a full
+allocation + memcopy of the entire state tensor, causing ~5–6x slowdown.
+SGLang MTP also computes internally in float32, but the conversion is
+block-level and on-the-fly inside the CUDA kernel (`tHgH.load().to(Float32)`),
+so no extra copy or allocation occurs. In principle SGLang MTP can hold state
+in bfloat16 (halving state memory) at negligible extra cost. The benchmark uses
+float32 states for both sides to keep the comparison fair.
+
 ## Setup
 
 **GPU:** NVIDIA B200
