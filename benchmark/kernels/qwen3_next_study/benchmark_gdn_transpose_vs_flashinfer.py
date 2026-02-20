@@ -320,8 +320,8 @@ def benchmark_decode(batch_size, seq_len, H, HV, K, V, warmup=25):
     bench_flashinfer()
     torch.cuda.synchronize()
 
-    sglang_ms = triton.testing.do_bench(bench_sglang, warmup=warmup, return_mode="median")
-    flashinfer_ms = triton.testing.do_bench(bench_flashinfer, warmup=warmup, return_mode="median")
+    sglang_ms = triton.testing.do_bench_cudagraph(bench_sglang, return_mode="median")
+    flashinfer_ms = triton.testing.do_bench_cudagraph(bench_flashinfer, return_mode="median")
 
     sglang_us = sglang_ms * 1000
     flashinfer_us = flashinfer_ms * 1000

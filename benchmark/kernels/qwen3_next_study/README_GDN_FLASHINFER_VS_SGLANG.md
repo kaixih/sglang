@@ -42,52 +42,52 @@ MTP diffs are larger due to accumulated floating-point errors across multiple to
 
 | Batch | SGLang (μs) | FlashInfer (μs) | FlashInfer speedup |
 |------:|------------:|----------------:|-------------------:|
-|     1 |       75.07 |           12.29 |             **6.11x** |
-|    32 |       76.83 |           30.72 |             **2.50x** |
-|    64 |       77.86 |           53.28 |             **1.46x** |
-|   128 |      145.41 |           96.29 |             **1.51x** |
-|   256 |      290.82 |          182.18 |             **1.60x** |
-|   512 |      575.42 |          356.22 |             **1.62x** |
+|     1 |        2.98 |            2.77 |             **1.08x** |
+|    32 |       34.37 |           21.39 |             **1.61x** |
+|    64 |       69.96 |           48.60 |             **1.44x** |
+|   128 |      139.18 |           92.75 |             **1.50x** |
+|   256 |      286.90 |          182.98 |             **1.57x** |
+|   512 |      571.98 |          361.27 |             **1.58x** |
 
 ### T=2 MTP
 
 | Batch | SGLang (μs) | FlashInfer (μs) | FlashInfer speedup |
 |------:|------------:|----------------:|-------------------:|
-|     1 |      108.80 |           13.31 |             **8.17x** |
-|    32 |      109.60 |           85.02 |             **1.29x** |
-|    64 |      171.97 |          158.62 |             **1.08x** |
-|   128 |      329.70 |          294.02 |             **1.12x** |
-|   256 |      655.47 |          580.58 |             **1.13x** |
-|   512 |     1316.82 |         1157.22 |             **1.14x** |
+|     1 |        5.09 |            6.45 |              0.79x (SGLang faster) |
+|    32 |       86.16 |           78.97 |             **1.09x** |
+|    64 |      166.49 |          153.18 |             **1.09x** |
+|   128 |      329.78 |          291.46 |             **1.13x** |
+|   256 |      659.91 |          575.36 |             **1.15x** |
+|   512 |     1315.06 |         1142.00 |             **1.15x** |
 
 ### T=3 MTP
 
 | Batch | SGLang (μs) | FlashInfer (μs) | FlashInfer speedup |
 |------:|------------:|----------------:|-------------------:|
-|     1 |      108.42 |           15.36 |             **7.06x** |
-|    32 |      124.99 |          121.89 |             **1.03x** |
-|    64 |      235.55 |          216.16 |             **1.09x** |
-|   128 |      456.70 |          418.85 |             **1.09x** |
-|   256 |      915.60 |          844.96 |             **1.08x** |
-|   512 |     1848.29 |         1699.47 |             **1.09x** |
+|     1 |        6.48 |            8.07 |              0.80x (SGLang faster) |
+|    32 |      119.76 |          114.83 |             **1.04x** |
+|    64 |      232.42 |          214.33 |             **1.08x** |
+|   128 |      457.53 |          423.85 |             **1.08x** |
+|   256 |      915.58 |          841.79 |             **1.09x** |
+|   512 |     1843.36 |         1700.66 |             **1.08x** |
 
 ### T=4 MTP
 
 | Batch | SGLang (μs) | FlashInfer (μs) | FlashInfer speedup |
 |------:|------------:|----------------:|-------------------:|
-|     1 |      109.33 |           17.41 |             **6.28x** |
-|    32 |      159.71 |          152.64 |             **1.05x** |
-|    64 |      301.06 |          271.36 |             **1.11x** |
-|   128 |      586.66 |          532.61 |             **1.10x** |
-|   256 |     1181.60 |         1067.04 |             **1.11x** |
-|   512 |     2386.98 |         2167.94 |             **1.10x** |
+|     1 |        7.80 |            9.42 |              0.83x (SGLang faster) |
+|    32 |      153.27 |          147.22 |             **1.04x** |
+|    64 |      296.37 |          267.37 |             **1.11x** |
+|   128 |      589.42 |          533.23 |             **1.11x** |
+|   256 |     1181.40 |         1068.76 |             **1.11x** |
+|   512 |     2397.72 |         2157.96 |             **1.11x** |
 
 ## Summary
 
-**FlashInfer is consistently faster across all configurations:**
+Benchmarked with `do_bench_cudagraph` to eliminate kernel launch overhead.
 
-- **T=1 decode:** FlashInfer is **1.5x–6.1x** faster. Both kernels use bfloat16 state and the same physical memory layout (K-contiguous). The speedup reflects differences in kernel implementation and algorithm design.
-- **T>1 MTP, B=1:** FlashInfer is **6–8x** faster (kernel launch overhead dominates at small batch).
-- **T>1 MTP, B≥32:** FlashInfer leads by **1.03x–1.14x** across all batch sizes and seq lengths.
+- **T=1 decode:** FlashInfer is **1.1x–1.6x** faster. Both kernels use bfloat16 state and the same physical memory layout (K-contiguous). The speedup reflects differences in kernel implementation and algorithm design.
+- **T>1 MTP, B=1:** **SGLang is faster** (1.2x–1.3x) — without launch overhead, SGLang's MTP kernel has better compute efficiency at very small batch.
+- **T>1 MTP, B≥32:** FlashInfer leads by **1.04x–1.15x** across all batch sizes and seq lengths.
 
-**Recommendation:** Use FlashInfer CuteDSL kernels for both decode and MTP paths in Qwen3.5 serving.
+**Recommendation:** Use FlashInfer CuteDSL kernels for both decode and MTP paths in Qwen3.5 serving (especially at batch≥32). At batch=1 MTP, SGLang is competitive.
