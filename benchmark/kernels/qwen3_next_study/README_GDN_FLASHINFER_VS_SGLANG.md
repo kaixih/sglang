@@ -25,8 +25,10 @@ removed, passing a bfloat16 state triggers a Python-level
 allocation + memcopy of the entire state tensor, causing ~5–6x slowdown.
 SGLang MTP also computes internally in float32, but the conversion is
 block-level and on-the-fly inside the CUDA kernel (`tHgH.load().to(Float32)`),
-so no extra copy or allocation occurs. In principle SGLang MTP can hold state
-in bfloat16 (halving state memory) at negligible extra cost. The benchmark uses
+so no extra copy or allocation occurs. Because the kernel is
+memory-bandwidth-bound, using bfloat16 state actually makes SGLang MTP
+**faster**: measured ~**1.4–1.5x** speedup over float32 at B≥32 (B=1: ~1.1x),
+with half the state memory footprint as a bonus. The benchmark tables above use
 float32 states for both sides to keep the comparison fair.
 
 ## Setup
