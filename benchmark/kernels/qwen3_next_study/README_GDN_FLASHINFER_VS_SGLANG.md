@@ -1,13 +1,13 @@
 # GDN Kernel Benchmark: SGLang CuteDSL Transpose vs FlashInfer CuteDSL
 
-Compares two high-performance GDN (Gated Delta Net) kernel implementations for Qwen3-Next.
+Compares two high-performance GDN (Gated Delta Net) kernel implementations for Qwen3.5.
 
 | | SGLang | FlashInfer |
 |---|---|---|
 | PR | [#17981](https://github.com/sgl-project/sglang/pull/17981) | [#2498](https://github.com/flashinfer-ai/flashinfer/pull/2498) |
 | T=1 kernel | `cutedsl_fused_recurrent_sigmoid_gated_delta_rule_update` | `gated_delta_rule` (from `flashinfer.gdn_kernels`) |
 | T>1 kernel | `cutedsl_fused_recurrent_gated_delta_rule_update` | `gated_delta_rule_mtp` (from `flashinfer.gdn_decode`) |
-| State layout | `[B, HV, K, V]` stride[-2]=1 (K-contiguous) | `[B, HV, V, K]` contiguous |
+| State layout | `[B, HV, K, V]` stride[-2]=1 (K-contiguous in memory) | `[B, HV, V, K]` contiguous (K-contiguous in memory) |
 | State dtype (T=1) | bfloat16 | bfloat16 (hardcoded in kernel SMEM) |
 | State dtype (T>1) | float32 | float32 (required, no bf16 path) |
 | MTP retraction | ✓ `intermediate_states_buffer` | ✓ `intermediate_states_buffer` |
@@ -21,7 +21,7 @@ Both MTP kernels support intermediate state caching for speculative decoding ret
 ## Setup
 
 **GPU:** NVIDIA B200
-**Model config (Qwen3-Next):** QK heads=16, V heads=64, head dim=128
+**Model config (Qwen3.5):** QK heads=16, V heads=64, head dim=128
 **Batch sizes:** 1, 32, 64, 128, 256, 512
 **Seq lengths (T):** 1 (decode), 2, 3, 4 (MTP)
 
@@ -86,8 +86,8 @@ MTP diffs are larger due to accumulated floating-point errors across multiple to
 
 **FlashInfer is consistently faster across all configurations:**
 
-- **T=1 decode:** FlashInfer is **1.5x–6.1x** faster. Both kernels use bfloat16 state (FlashInfer's kernel hardcodes it in SMEM; SGLang is configured to match). The speedup reflects algorithmic differences: VK layout (`[B,HV,V,K]` K-fast) vs SGLang's KV-transposed layout with stride[-2]=1.
+- **T=1 decode:** FlashInfer is **1.5x–6.1x** faster. Both kernels use bfloat16 state and the same physical memory layout (K-contiguous). The speedup reflects differences in kernel implementation and algorithm design.
 - **T>1 MTP, B=1:** FlashInfer is **6–8x** faster (kernel launch overhead dominates at small batch).
 - **T>1 MTP, B≥32:** FlashInfer leads by **1.03x–1.14x** across all batch sizes and seq lengths.
 
-**Recommendation:** Use FlashInfer CuteDSL kernels for both decode and MTP paths in Qwen3-Next serving.
+**Recommendation:** Use FlashInfer CuteDSL kernels for both decode and MTP paths in Qwen3.5 serving.
