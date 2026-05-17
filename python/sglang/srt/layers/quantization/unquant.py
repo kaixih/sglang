@@ -255,6 +255,13 @@ class UnquantizedFusedMoEMethod(FusedMoEMethodBase, MultiPlatformOp):
 
         # Reorder rows of W1 for fused gated activation
         if self.use_flashinfer_trtllm_moe:
+            if get_bool_env_var(
+                "SGLANG_EXPERIMENTAL_FLASHINFER_BF16_RUNTIME_PACK"
+            ):
+                # Keep resident BF16 MoE weights canonical. The FlashInfer
+                # blocked layout will be produced at the kernel boundary.
+                return
+
             from flashinfer.fused_moe.core import (
                 _maybe_get_cached_w3_w1_permute_indices,
                 convert_to_block_layout,

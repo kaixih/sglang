@@ -996,6 +996,89 @@ def fused_experts_none_to_flashinfer_trtllm_fp4(
     return StandardCombineInput(hidden_states=result)
 
 
+def _runtime_pack_flashinfer_trtllm_bf16_weights(
+    gemm1_weights: torch.Tensor,
+    gemm2_weights: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, int | None]:
+    """Pad and pack canonical BF16 MoE weights for the FlashInfer kernel."""
+    if gemm1_weights.dim() == 4 and gemm2_weights.dim() == 4:
+        return gemm1_weights, gemm2_weights, None
+    if gemm1_weights.dim() != 3 or gemm2_weights.dim() != 3:
+        raise RuntimeError(
+            "Expected canonical 3D or packed 4D BF16 FlashInfer TRT-LLM weights, "
+            f"got gemm1={tuple(gemm1_weights.shape)} "
+            f"gemm2={tuple(gemm2_weights.shape)}."
+        )
+
+    from flashinfer.fused_moe.core import (
+        _maybe_get_cached_w3_w1_permute_indices,
+        convert_to_block_layout,
+        get_w2_permute_indices_with_cache,
+    )
+
+    epilogue_tile_m = 128
+    block_k = 128
+    actual_intermediate = gemm2_weights.shape[2]
+    padded_intermediate = round_up_to_multiple(actual_intermediate, epilogue_tile_m)
+    hidden_size = gemm2_weights.shape[1]
+    if gemm1_weights.shape[1:] != (2 * actual_intermediate, hidden_size):
+        raise RuntimeError(
+            "Expected canonical gated BF16 MoE weights with shapes "
+            f"gemm1=(experts, {2 * actual_intermediate}, {hidden_size}) and "
+            f"gemm2=(experts, {hidden_size}, {actual_intermediate}), got "
+            f"gemm1={tuple(gemm1_weights.shape)} gemm2={tuple(gemm2_weights.shape)}."
+        )
+
+    permute_indices_cache = {}
+    packed_w13 = []
+    packed_w2 = []
+
+    for expert_idx in range(gemm1_weights.shape[0]):
+        expert_w13 = gemm1_weights[expert_idx]
+        expert_w2 = gemm2_weights[expert_idx]
+        if padded_intermediate != actual_intermediate:
+            padded_w13 = expert_w13.new_zeros(2 * padded_intermediate, hidden_size)
+            padded_w13[:actual_intermediate].copy_(
+                expert_w13[:actual_intermediate]
+            )
+            padded_w13[
+                padded_intermediate : padded_intermediate + actual_intermediate
+            ].copy_(expert_w13[actual_intermediate:])
+
+            padded_w2 = expert_w2.new_zeros(hidden_size, padded_intermediate)
+            padded_w2[:, :actual_intermediate].copy_(expert_w2)
+            expert_w13 = padded_w13
+            expert_w2 = padded_w2
+
+        w13_u8 = expert_w13.contiguous().view(torch.uint8)
+        w13_permute_indices = _maybe_get_cached_w3_w1_permute_indices(
+            permute_indices_cache, w13_u8, epilogue_tile_m
+        )
+        packed_expert_w13 = w13_u8[
+            w13_permute_indices.to(w13_u8.device)
+        ].contiguous()
+        packed_expert_w13 = convert_to_block_layout(
+            packed_expert_w13.view(torch.uint8), block_k
+        )
+        packed_w13.append(packed_expert_w13.view(torch.bfloat16))
+
+        w2_u8 = expert_w2.contiguous().view(torch.uint8)
+        w2_permute_indices = get_w2_permute_indices_with_cache(
+            permute_indices_cache, w2_u8, epilogue_tile_m
+        )
+        packed_expert_w2 = w2_u8[w2_permute_indices.to(w2_u8.device)].contiguous()
+        packed_expert_w2 = convert_to_block_layout(
+            packed_expert_w2.view(torch.uint8), block_k
+        )
+        packed_w2.append(packed_expert_w2.view(torch.bfloat16))
+
+    return (
+        torch.stack(packed_w13, dim=0).contiguous(),
+        torch.stack(packed_w2, dim=0).contiguous(),
+        padded_intermediate,
+    )
+
+
 @dataclass
 class FlashInferTrtllmBf16MoeQuantInfo(MoeQuantInfo):
     """Quantization payload consumed by FlashInfer TRT-LLM BF16 MoE kernels."""
@@ -1054,6 +1137,17 @@ def fused_experts_none_to_flashinfer_trtllm_bf16(
 
     hidden_states = dispatch_output.hidden_states
     topk_output = dispatch_output.topk_output
+    (
+        gemm1_weights,
+        gemm2_weights,
+        packed_intermediate_size,
+    ) = _runtime_pack_flashinfer_trtllm_bf16_weights(
+        quant_info.gemm1_weights,
+        quant_info.gemm2_weights,
+    )
+    intermediate_size = (
+        packed_intermediate_size or runner_config.intermediate_size_per_partition
+    )
 
     with use_symmetric_memory(get_tp_group(), disabled=not is_allocation_symmetric()):
         if use_routed_topk:
@@ -1074,13 +1168,13 @@ def fused_experts_none_to_flashinfer_trtllm_bf16(
             final_hidden_states = trtllm_bf16_routed_moe(
                 topk_ids=packed_topk_ids,
                 hidden_states=hidden_states,
-                gemm1_weights=quant_info.gemm1_weights,
-                gemm2_weights=quant_info.gemm2_weights,
+                gemm1_weights=gemm1_weights,
+                gemm2_weights=gemm2_weights,
                 num_experts=quant_info.global_num_experts,
                 top_k=runner_config.top_k,
                 n_group=None,
                 topk_group=None,
-                intermediate_size=runner_config.intermediate_size_per_partition,
+                intermediate_size=intermediate_size,
                 local_expert_offset=quant_info.local_expert_offset,
                 local_num_experts=runner_config.num_local_experts,
                 routing_method_type=routing_method_type,
@@ -1101,13 +1195,13 @@ def fused_experts_none_to_flashinfer_trtllm_bf16(
                 routing_logits=topk_output.router_logits,
                 routing_bias=topk_config.correction_bias,
                 hidden_states=hidden_states,
-                gemm1_weights=quant_info.gemm1_weights,
-                gemm2_weights=quant_info.gemm2_weights,
+                gemm1_weights=gemm1_weights,
+                gemm2_weights=gemm2_weights,
                 num_experts=quant_info.global_num_experts,
                 top_k=topk_config.top_k,
                 n_group=topk_config.num_expert_group,
                 topk_group=topk_config.topk_group,
-                intermediate_size=runner_config.intermediate_size_per_partition,
+                intermediate_size=intermediate_size,
                 local_expert_offset=quant_info.local_expert_offset,
                 local_num_experts=runner_config.num_local_experts,
                 routing_method_type=runner_config.routing_method_type,

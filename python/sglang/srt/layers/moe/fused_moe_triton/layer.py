@@ -233,6 +233,9 @@ class FusedMoE(torch.nn.Module):
         # Pad the intermediate_size_per_partition if necessary
         if (
             self.use_flashinfer_trtllm_moe
+            and not get_bool_env_var(
+                "SGLANG_EXPERIMENTAL_FLASHINFER_BF16_RUNTIME_PACK"
+            )
             and self.intermediate_size_per_partition % 128 != 0
         ):
             self.intermediate_size_per_partition = round_up(
