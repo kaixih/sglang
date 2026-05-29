@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -1096,25 +1097,42 @@ def fused_experts_none_to_flashinfer_trtllm_bf16(
             assert TopKOutputChecker.format_is_bypassed(topk_output)
             topk_config = topk_output.topk_config
 
-            # Call the fused kernel
-            final_hidden_states = trtllm_bf16_moe(
-                routing_logits=topk_output.router_logits,
-                routing_bias=topk_config.correction_bias,
-                hidden_states=hidden_states,
-                gemm1_weights=quant_info.gemm1_weights,
-                gemm2_weights=quant_info.gemm2_weights,
-                num_experts=quant_info.global_num_experts,
-                top_k=topk_config.top_k,
-                n_group=topk_config.num_expert_group,
-                topk_group=topk_config.topk_group,
-                intermediate_size=runner_config.intermediate_size_per_partition,
-                local_expert_offset=quant_info.local_expert_offset,
-                local_num_experts=runner_config.num_local_experts,
-                routing_method_type=runner_config.routing_method_type,
-                routed_scaling_factor=runner_config.routed_scaling_factor,
-                tune_max_num_tokens=next_power_of_2(hidden_states.shape[0]),
-                activation_type=activation_type,
+            chunk_tokens = int(
+                os.environ.get(
+                    "SGLANG_DEBUG_FLASHINFER_BF16_MOE_CHUNK_TOKENS", "0"
+                )
+                or 0
             )
+
+            def run_bf16_moe_chunk(chunk_start: int, chunk_end: int):
+                return trtllm_bf16_moe(
+                    routing_logits=topk_output.router_logits[chunk_start:chunk_end],
+                    routing_bias=topk_config.correction_bias,
+                    hidden_states=hidden_states[chunk_start:chunk_end],
+                    gemm1_weights=quant_info.gemm1_weights,
+                    gemm2_weights=quant_info.gemm2_weights,
+                    num_experts=quant_info.global_num_experts,
+                    top_k=topk_config.top_k,
+                    n_group=topk_config.num_expert_group,
+                    topk_group=topk_config.topk_group,
+                    intermediate_size=runner_config.intermediate_size_per_partition,
+                    local_expert_offset=quant_info.local_expert_offset,
+                    local_num_experts=runner_config.num_local_experts,
+                    routing_method_type=runner_config.routing_method_type,
+                    routed_scaling_factor=runner_config.routed_scaling_factor,
+                    tune_max_num_tokens=next_power_of_2(chunk_end - chunk_start),
+                    activation_type=activation_type,
+                )
+
+            if chunk_tokens > 0 and hidden_states.shape[0] > chunk_tokens:
+                final_hidden_states = torch.empty_like(hidden_states)
+                for chunk_start in range(0, hidden_states.shape[0], chunk_tokens):
+                    chunk_end = min(chunk_start + chunk_tokens, hidden_states.shape[0])
+                    final_hidden_states[chunk_start:chunk_end].copy_(
+                        run_bf16_moe_chunk(chunk_start, chunk_end)
+                    )
+            else:
+                final_hidden_states = run_bf16_moe_chunk(0, hidden_states.shape[0])
 
     return StandardCombineInput(hidden_states=final_hidden_states)
 
