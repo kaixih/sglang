@@ -339,6 +339,10 @@ class ModelRunner:
         # load_batch; the scheduler's WAR barrier waits on it (then clears it)
         # instead of the whole-forward wait_stream. None -> whole-forward fallback.
         self.war_fastpath_read_done_event: Optional[torch.cuda.Event] = None
+        # True when the published event was recorded after replay (hybrid
+        # linear-attention decode): the WAR barrier must then wait on the host
+        # instead of stalling schedule_stream behind the replay's collectives.
+        self.war_fastpath_read_done_is_post_replay: bool = False
 
         # CPU offload
         set_offloader(

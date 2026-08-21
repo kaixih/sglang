@@ -1275,11 +1275,13 @@ class DecodeCudaGraphRunner(BaseCudaGraphRunner):
                 read_done = self.device_module.Event()
                 read_done.record()
                 self.model_runner.war_fastpath_read_done_event = read_done
+                self.model_runner.war_fastpath_read_done_is_post_replay = False
             output = self.backend.replay(self._replay_graph_key, forward_batch)
             if read_done_post_replay:
                 read_done = self.device_module.Event()
                 read_done.record()
                 self.model_runner.war_fastpath_read_done_event = read_done
+                self.model_runner.war_fastpath_read_done_is_post_replay = True
 
         if isinstance(output, LogitsProcessorOutput):
             if self.is_dllm:

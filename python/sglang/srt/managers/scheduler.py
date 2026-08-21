@@ -1532,9 +1532,24 @@ class Scheduler(
             return
         runner = self.model_worker.war_fastpath_runner
         ev = runner.war_fastpath_read_done_event
+        ev_is_post_replay = runner.war_fastpath_read_done_is_post_replay
         runner.war_fastpath_read_done_event = None
+        runner.war_fastpath_read_done_is_post_replay = False
         if ev is not None and not envs.SGLANG_FORCE_COARSE_WAR_BARRIER.get():
-            self.schedule_stream.wait_event(ev)
+            if ev_is_post_replay:
+                # The event was recorded after the replay (hybrid linear-attention
+                # decode reads shared recurrent state throughout the replay).
+                # Waiting on it from schedule_stream would order every later
+                # schedule op -- including the waits the next forward launch and
+                # delayed sample take on schedule_stream -- behind the replay's
+                # cross-rank collectives, closing a cross-rank deadlock cycle.
+                # A host-side wait keeps the WAR ordering (later schedule work is
+                # enqueued only after the replay's reads finished) while keeping
+                # the stream dependency graph acyclic: schedule_stream never
+                # waits on forward-stream events.
+                ev.synchronize()
+            else:
+                self.schedule_stream.wait_event(ev)
         else:
             self.schedule_stream.wait_stream(self.forward_stream)
 
